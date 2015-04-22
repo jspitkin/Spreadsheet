@@ -1,0 +1,392 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using SS;
+using SpreadsheetUtilities;
+using System.Text.RegularExpressions;
+using System.IO;
+
+namespace SpreadsheetGUI
+{
+    public partial class SpreadsheetForm : Form
+    {
+        /// <summary>
+        // Internal data for the spreadsheet. Keeps track of the contents
+        // and values all non-empty cells in the spreadsheet. In addition,
+        // AbstractSpreadsheet will throw a number of errors when invalid 
+        // operations are attempted on the spreadsheet.
+        /// </summary>
+        AbstractSpreadsheet sheet;
+
+        public SpreadsheetForm()
+        {
+            InitializeComponent();
+            //The internal guts of the spreadsheet
+            sheet = new Spreadsheet(IsValid, Normalize, "ps6");
+            //If a new grid selection is made, displaySelectedCell is notified.
+            spreadsheetGrid.SelectionChanged += DisplaySelectedCell;
+            //When "X" or the close button are clicked, the SpreadsheetForm event FormClosing is notified.
+            this.FormClosing += SpreadsheetForm_FormClosing;
+            //Set the default cell name to "A1"
+            CellNameBox.Text = "A1";
+        }
+
+        /// <summary>
+        /// Returns true if the cell name is contained in the 26 column and 99 row grid.
+        /// </summary>
+        /// <param name="cellName">The name of the cell being tested for validity.</param>
+        /// <returns>True if the cell name is valid; false otherwise.</returns>
+        private bool IsValid(string cellName)
+        {
+            if (cellName == null)
+            {
+                return false;
+            }
+
+            string validPattern = @"^[a-zA-Z][1-9][0-9]?$";
+            if (Regex.IsMatch(cellName, validPattern))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Takes in a valid cell name and returns the capitalized version.
+        /// For example, "a1" would return "A1".
+        /// </summary>
+        /// <param name="cellName">The cell name to be normalized.</param>
+        /// <returns>A normalized version of the cell name.</returns>
+        private string Normalize(string cellName)
+        {
+            return cellName.ToUpper();
+        }
+
+        /// <summary>
+        /// Using a row and column number, this method generates
+        /// a proper cell name.
+        /// </summary>
+        /// <param name="row">The current row</param>
+        /// <param name="col">the current column</param>
+        /// <returns>A cell name for the given row and column.</returns>
+        private string GenerateCellName(int row, int col)
+        {
+            //Add 65 to col and convert to a char to get the proper column character
+            char column = (char)(col + 65);
+            row++;
+            return column + row.ToString();
+        }
+
+        /// <summary>
+        /// Takes in a cell name and passes out an equivalent column
+        /// and row as an integer. For example, "A1" returns 1 and 1.
+        /// </summary>
+        /// <param name="cellName">A cell name to be converted.</param>
+        /// <param name="col">The column of the given cell name.</param>
+        /// <param name="row">The row of the given cell name.</param>
+        private void GetRowAndCol(string cellName, out int col, out int row)
+        {
+            col = (int)cellName[0] - 65;
+            if (cellName.Length == 2)
+            {
+                row = (int)Char.GetNumericValue(cellName[1]) - 1;
+            }
+            else
+            {
+                string rowString = cellName.Substring(1, 2);
+                row = Convert.ToInt16(rowString) - 1;
+            }
+        }
+
+        /// <summary>
+        /// Creates a new Spreadsheet panel in a new window.
+        /// </summary>
+        private void New_Click(object sender, EventArgs e)
+        {
+            //Run a new Spreadsheet Form
+            SpreadsheetApplicationContext.getAppContext().RunForm(new SpreadsheetForm());
+        }
+
+        /// <summary>
+        /// Opens a previous saved .sprd (Spreadsheet) file. If unsaved data would
+        /// become lost as a result of this, a warning is issued to the user and they
+        /// can choose how to proceed.
+        /// </summary>
+        private void Open_Click(object sender, EventArgs e)
+        {
+            //A new open file dialog box that allows only .sprd or all files
+            OpenFileDialog openFile = new OpenFileDialog();
+            openFile.Filter = "Spreadsheet files (.sprd)|*.sprd|All Files (*.*)|*.*";
+
+            //Test if the user chose a file to open and the file has been changed since last saving
+            //If so alert the user, information will be lost if they don't save first.
+            DialogResult OpenedFile = openFile.ShowDialog();
+            if (OpenedFile == DialogResult.OK && sheet.Changed)
+            {
+                const string message = "Are you sure you want to open a new Spreadsheet without saving? Unsaved work will be lost.";
+                const string caption = "Spreadsheet closing";
+                var result = MessageBox.Show(message, caption, MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+            }
+
+            if (OpenedFile == DialogResult.OK)
+            {
+                //Open the given .sprd on top of the current spreadsheet
+                sheet = new Spreadsheet(openFile.FileName, IsValid, Normalize, "ps6");
+                spreadsheetGrid.Clear();
+                //Get all the cells that need to be added to the spreadsheet grid
+                HashSet<string> cells = new HashSet<string>(sheet.GetNamesOfAllNonemptyCells());
+                //Add all the internal cells to the GUI
+                int row, col;
+                foreach (string cell in cells)
+                {
+                    GetRowAndCol(cell, out col, out row);
+                    //Check if value is a FormulaError
+                    if (sheet.GetCellValue(cell) is FormulaError)
+                    {
+                        spreadsheetGrid.SetValue(col, row, "Formula Error");
+                    }
+                    else
+                    {
+                        spreadsheetGrid.SetValue(col, row, sheet.GetCellValue(cell).ToString());
+                    }
+                }
+
+            }
+        }
+
+        /// <summary>
+        /// When Save is clicked, a Save dialog box appears.
+        /// </summary>
+        private void Save_Click(object sender, EventArgs e)
+        {
+            SaveDialog.Filter = "Spreadsheet files (.sprd)|*.sprd|All Files (*.*)|*.*";
+            SaveDialog.ShowDialog();
+        }
+
+        /// <summary>
+        /// Saves the current spreadsheet to a .sprd file at a user
+        /// selected destination.
+        /// </summary>
+        private void SaveDialog_FileOk(object sender, CancelEventArgs e)
+        {
+            //Append .sprd to file path, if it doesn't already exist
+            //and then save the file.
+            string filePath = SaveDialog.FileName;
+            if (Path.HasExtension(filePath))
+            {
+                sheet.Save(filePath);
+            }
+            else
+            {
+                filePath = filePath + ".sprd";
+                sheet.Save(filePath);
+            }
+        }
+
+        /// <summary>
+        /// Has the same functionality as clicking the close button ("X" in top right).
+        /// </summary>
+        private void Close_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        /// <summary>
+        /// Clears all cells in the spreadsheet
+        /// </summary>
+        private void Clear_Click(object sender, EventArgs e)
+        {
+            spreadsheetGrid.Clear();
+            ValueBox.Text = "";
+            ContentsBox.Text = "";
+            sheet = new Spreadsheet(IsValid, Normalize, "ps6");
+        }
+
+        /// <summary>
+        /// When ViewHelp is clicked, a message box with helpful information
+        /// regarding the Spreadsheet program appears.
+        /// </summary>
+        private void ViewHelp_Click(object sender, EventArgs e)
+        {
+            string helpMessage = "SPREADSHEET MENUS: \r\n"
+                + "File > New - creates a new Spreadsheet in a new window. \r\n"
+                + "File > Open - opens a .sprd file and replaces the current Spreadsheet. \r\n"
+                + "File > Save - saves the current Spreadsheet. \r\n"
+                + "File > Close - closes the current Spreadsheet window. \r\n"
+                + "Edit > Clear - clears all data from the current Spreadsheet. \r\n\n"
+                + "SPREADSHEET NAVIGATION: \r\n"
+                + "Cell: The highlighted cell. \r\n"
+                + "Value: The value of the highlighted cell. \r\n"
+                + "Contents: The contents of the highlighted cell. \r\n\n"
+                + "EDITING  A CELL: \r\n"
+                + "Select the cell you would like to edit and put the desired data in \r\n"
+                + "the contents box. Then, click ENTER or the Set button to complete the edit. \r\n\n"
+                + "FORMULAS AND COMMON PROBLEMS: \r\n"
+                + "Using a formula: To enter a formula into a cell, put a \"=\" before the desired \r\n"
+                + "formula into the Contents text box. For example, \"=A1 * 2\". \r\n\n"
+                + "Formula Error: If a cell contains \"Formula Error\" something went wrong. \r\n"
+                + "A formula cannont reference a cell that is empty or contains text. \r\n\n"
+                + "Invalid Formula: A formula can only contain numbers, cell names, mathematical \r\n"
+                + "operators and parentheses. Any other characters will cause this error. \r\n\n"
+                + "Circular Dependency: A cell can not reference itself or a cell that references it.";
+
+            MessageBox.Show(helpMessage, "Spreadsheet Help", MessageBoxButtons.OK);
+        }
+
+        /// <summary>
+        /// Warns the user if they attempt to close a Spreadsheet Form with unsaved work.
+        /// "Yes" will close the form anyway and "Cancel" will cancel the close operation.
+        /// This warning only happens if the user hasn't saved since their last edit.
+        /// </summary>
+        private void SpreadsheetForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (sheet.Changed)
+            {
+                const string message = "Are you sure you want to close without saving? Unsaved work will be lost.";
+                const string caption = "Spreadsheet closing";
+                var result = MessageBox.Show(message, caption, MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+
+                if (result == DialogResult.Cancel)
+                {
+                    e.Cancel = true;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Commits the string in the "Contents" text box. This will calculate
+        /// the cells value, display it in the grid and update the display for all
+        /// cells dependent on the updated cell.
+        /// </summary>
+        private void ContentsBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                SetCells(ContentsBox.Text);
+                //Supresses the "DING" sound when hitting enter
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+        }
+
+        /// <summary>
+        /// Commits the string in the "Contents" text box. This will calculate
+        /// the cells value, display it in the grid and update the display for all
+        /// cells dependent on the updated cell.
+        /// </summary>
+        private void SetKey_Click(object sender, EventArgs e)
+        {
+            SetCells(ContentsBox.Text);
+        }
+
+        /// <summary>
+        /// Sets the highlighted cell with the given content. In addition,
+        /// updates the value and content of all cells dependent on it in 
+        /// the spreadsheet grid.
+        /// </summary>
+        /// <param name="content">The content of the cell to be set</param>
+        private void SetCells(string content)
+        {
+            try
+            {
+                int row, col;
+                string cellName = CellNameBox.Text;
+                //All the cells dependent on the cell being changed
+                HashSet<string> dependents = new HashSet<string>(sheet.SetContentsOfCell(cellName, content));
+                //Determines the current highlighted cell
+                spreadsheetGrid.GetSelection(out col, out row);
+                //Display the value of the current cell in the grid
+                //Check if value is a FormulaError
+                if (sheet.GetCellValue(cellName) is FormulaError)
+                {
+                    //Set the grid and value box to "Formula Error" if so
+                    spreadsheetGrid.SetValue(col, row, "Formula Error");
+                    ValueBox.Text = "Formula Error";
+                }
+                else
+                {
+                    //Otherwise, set them to the cell's value
+                    spreadsheetGrid.SetValue(col, row, sheet.GetCellValue(cellName).ToString());
+                    ValueBox.Text = sheet.GetCellValue(cellName).ToString();
+                }
+                //Update all cells dependent on the changed cell
+                foreach (string cell in dependents)
+                {
+                    GetRowAndCol(cell, out col, out row);
+                    //Check if value is a FormulaError
+                    if (sheet.GetCellValue(cell) is FormulaError)
+                    {
+                        spreadsheetGrid.SetValue(col, row, "Formula Error");
+                    }
+                    else
+                    {
+                        spreadsheetGrid.SetValue(col, row, sheet.GetCellValue(cell).ToString());
+                    }
+                }
+            }
+            catch (CircularException)
+            {
+                MessageBox.Show("A cell can't reference itself, or reference a cell that references it. Check your formula.",
+                    "Circular Dependency", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (FormulaFormatException e)
+            {
+                MessageBox.Show(e.Message, "Invalid Formula", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (InvalidNameException e)
+            {
+                MessageBox.Show(e.Message, "Invalid Cell Name", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (ArgumentNullException e)
+            {
+                MessageBox.Show(e.Message, "Content is null", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (Exception)
+            {
+                MessageBox.Show("An error has occured.", "Unexpected Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// Displays the correct cell name, contents and value of
+        /// the selected cell above the grid.
+        /// </summary>
+        /// <param name="panel"></param>
+        private void DisplaySelectedCell(SpreadsheetPanel panel)
+        {
+            int row, col;
+            //The highlighted cell
+            panel.GetSelection(out col, out row);
+            //row and col are converted to a cell name
+            string cellName = GenerateCellName(row, col);
+            //Get the value of the given cell name
+            //Check if value is a FormulaError
+            if (sheet.GetCellValue(cellName) is FormulaError)
+            {
+                ValueBox.Text = "Formula Error";
+            }
+            else
+            {
+                ValueBox.Text = sheet.GetCellValue(cellName).ToString();
+            }
+            //Get the contents of the given cell name
+            //If the contents is a formula, append a "=" to the front
+            if (sheet.GetCellContents(cellName) is Formula)
+            {
+                ContentsBox.Text = "=" + sheet.GetCellContents(cellName).ToString();
+            }
+            else
+            {
+                ContentsBox.Text = sheet.GetCellContents(cellName).ToString();
+            }
+
+            CellNameBox.Text = cellName;
+        }
+    }
+}

@@ -1,0 +1,74 @@
+﻿Problem Set 6 for CS 3500 Fall 2014
+Jake Pitkin u0891770
+October 17th, 2014
+*************************************
+A valid cell:
+	The first character is an underscore or a letter.
+	This is followed by zero or more underscores, letters or digits.
+
+Spreadsheet has a cell for every possible cell name.
+Each cell has contents & a value.
+	Contents can be:
+		String
+		Double
+		Formula
+	Value can be:
+		String
+		Double
+		FormulaError
+
+In a new spreadsheet, the contents of each cell is an empty string.
+If a cell's content is a Formula, it's value is either a double or a FormulaError.
+	This is determined by Formula.Evaluate
+
+The value of a variable is the value of the Spreadsheet cell it names.
+	This can be a double value only; undefined otherwise.
+
+A cell can not depend on itself: this is called a circular dependency.
+
+Cell Class:
+The Cell class will be used to contain all the useful information needed to create one cell.
+
+Formula library:
+Formula can be used to evaluate formulas and return either a double value or a FormulaError
+
+DependencyGraph library:
+This will be used to avoid circular dependency among cells.
+
+10/03/14 BUG: Grading test #16 is still failing in the Formula class (PS3).
+10/04/14 BUG FIX: Updated PS3 to throw proper exceptions and got test #16 passing.
+
+10/13/14 ERROR HANDLING
+
+FormulaFormatException
+	Invalid formula is entered
+	Invalid variable names
+
+FormulaError (Object)
+	A division by zero
+	Undefined variable
+
+InvalidNameException
+	Cell name is invalid
+	Cell name is null
+
+ArgumentNullException
+	Content is null
+
+CircularException
+	A circular dependency is formed
+
+SpreadsheetReadWriteException
+	Problem opening file
+	Problem writing file
+	Problem closing file
+
+11/01/14 A GUI was added to allow a user to interact with the spreadsheet
+		 with a graphical user interface. 
+
+11/03/14 Added Keyboard shortcuts for quicker menu navigation
+11/04/14 Added a help menu to help users understand how to use the spreadsheet.
+
+EXTRAS:
+11/04/14 Added a Clear function and shortcuts for actions.
+11/04/14 Added an icon for my spreadsheet program. 

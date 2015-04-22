@@ -1,0 +1,100 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>SpreadsheetUtilities</name>
+    </assembly>
+    <members>
+        <!-- Badly formed XML comment ignored for member "T:SpreadsheetUtilities.DependencyGraph" -->
+        <member name="F:SpreadsheetUtilities.DependencyGraph.dependees">
+            <summary>
+            A dictionary of dependents and their dependees. The
+            value is a set a strings that are the dependees to the key.
+            </summary>
+        </member>
+        <member name="F:SpreadsheetUtilities.DependencyGraph.dependents">
+            <summary>
+            A dictionary of dependees and their dependents. The
+            value is a set of strings that are dependent on the key.
+            </summary>
+        </member>
+        <member name="M:SpreadsheetUtilities.DependencyGraph.#ctor">
+            <summary>
+            Creates an empty DependencyGraph.
+            </summary>
+        </member>
+        <member name="M:SpreadsheetUtilities.DependencyGraph.HasDependents(System.String)">
+            <summary>
+            Reports whether dependents(s) is non-empty.
+            </summary>
+            <param name="s">The string being tested for dependents</param>
+            <returns>True if s has values dependent on it; false otherwise.</returns>
+        </member>
+        <member name="M:SpreadsheetUtilities.DependencyGraph.HasDependees(System.String)">
+            <summary>
+            Reports whether dependees(s) is non-empty.
+            </summary>
+            <param name="s">The string being tested for dependees.</param>
+            <returns>True if s has dependees; false otherwise.</returns>
+        </member>
+        <member name="M:SpreadsheetUtilities.DependencyGraph.GetDependents(System.String)">
+            <summary>
+            Enumerates dependents(s).
+            </summary>
+            <param name="s">The string for which the collection is dependent on.</param>
+            <returns>An iterable collection of strings dependent on s.</returns>
+        </member>
+        <member name="M:SpreadsheetUtilities.DependencyGraph.GetDependees(System.String)">
+            <summary>
+            Enumerates dependees(s).
+            </summary>
+            <param name="s">The string that the dependee of the strings in the collection</param>
+            <returns>An iterable collection of strings that are dependees of s.</returns>
+        </member>
+        <member name="M:SpreadsheetUtilities.DependencyGraph.AddDependency(System.String,System.String)">
+            <summary>
+            Adds the ordered pair (s,t), if it doesn't exist already.
+            </summary>
+            <param name="s">A string who is a dependee of t</param>
+            <param name="t">A string who is dependent on s</param>
+        </member>
+        <member name="M:SpreadsheetUtilities.DependencyGraph.RemoveDependency(System.String,System.String)">
+            <summary>
+            Removes the ordered pair (s,t), if it exists.
+            </summary>
+            <param name="s">A string who is a dependee of t</param>
+            <param name="t">A string who is dependent on s</param>
+        </member>
+        <member name="M:SpreadsheetUtilities.DependencyGraph.ReplaceDependents(System.String,System.Collections.Generic.IEnumerable{System.String})">
+            <summary>
+            Removes all existing ordered pairs of the form (s,r).  Then, for each
+            t in newDependents, adds the ordered pair (s,t).
+            <param name="s">A string that will have it's dependents replaced.</param>
+            <param name="newDependents">The replacement dependents.</param>
+            </summary>
+        </member>
+        <member name="M:SpreadsheetUtilities.DependencyGraph.ReplaceDependees(System.String,System.Collections.Generic.IEnumerable{System.String})">
+            <summary>
+            Removes all existing ordered pairs of the form (r,s).  Then, for each 
+            t in newDependees, adds the ordered pair (t,s).
+            <param name="s">A string that will have it's dependees replaced.</param>
+            <param name="newDependees">The replacement dependees.</param>
+            </summary>
+        </member>
+        <member name="P:SpreadsheetUtilities.DependencyGraph.Size">
+            <summary>
+            The number of ordered pairs in the DependencyGraph.
+            </summary>
+            <returns>The number of (s,t) pairs in the DependencyGraph.</returns>
+        </member>
+        <member name="P:SpreadsheetUtilities.DependencyGraph.Item(System.String)">
+            <summary>
+            The size of dependees(s).
+            This property is an example of an indexer.  If dg is a DependencyGraph, you would
+            invoke it like this:
+            dg["a"]
+            It should return the size of dependees("a")
+            </summary>
+            <returns>The number of dependees that string s has.</returns>
+        </member>
+    </members>
+</doc>
